@@ -87,12 +87,14 @@ CDMInterface <- R6::R6Class(
     #'
     #' @template param_cohortIds
     #' @template param_cohortTableName
+    #' @template param_andromeda
+    #' @param andromedaTableName Name of the table in the Andromeda object where the data will be loaded.
     #'
     #' @return (`data.frame`)
-    fetchCohortTable = function(cohortIds, cohortTableName) {
+    fetchCohortTable = function(cohortIds, cohortTableName, andromeda, andromedaTableName) {
       switch(private$type,
-        CDMConnector = private$cdmconFetchCohortTable(cohortIds, cohortTableName),
-        DatabaseConnector = private$dbconFetchCohortTable(cohortIds, cohortTableName)
+        CDMConnector = private$cdmconFetchCohortTable(cohortIds, cohortTableName, andromeda, andromedaTableName),
+        DatabaseConnector = private$dbconFetchCohortTable(cohortIds, cohortTableName, andromeda, andromedaTableName)
       )
     },
 
@@ -162,7 +164,9 @@ CDMInterface <- R6::R6Class(
     #### DatabaseConnector ----
     # cohortIds (`integer(n)`)
     # cohortTableName (`character(1)`)
-    dbconFetchCohortTable = function(cohortIds, cohortTableName) {
+    # andromeda (`Andromeda::andromeda()`)
+    # andromedaTableName (`character(1)`)
+    dbconFetchCohortTable = function(cohortIds, cohortTableName, andromeda, andromedaTableName) {
       renderedSql <- SqlRender::render(
         sql = "
         SELECT *
@@ -177,7 +181,11 @@ CDMInterface <- R6::R6Class(
         sql = renderedSql,
         targetDialect = private$connection@dbms
       )
-      return(DatabaseConnector::querySql(private$connection, translatedSql))
+      DatabaseConnector::querySqlToAndromeda(connection = private$connection, 
+                                             sql = translatedSql,
+                                             andromeda = andromeda,
+                                             andromedaTableName = andromedaTableName)
+      return(invisible(NULL))
     },
 
     # andromeda (`Andromeda::andromeda()`)
@@ -273,12 +281,12 @@ CDMInterface <- R6::R6Class(
     #### CDMConnector ----
     # cohortIds (`integer(n)`)
     # cohortTableName (`character(1)`)
-    cdmconFetchCohortTable = function(cohortIds, cohortTableName) {
-      return(
-        private$cdm[[cohortTableName]] %>%
-          dplyr::filter(.data$cohort_definition_id %in% cohortIds)
-      ) %>%
-        dplyr::collect()
+    # andromeda (`Andromeda::andromeda()`)
+    # andromedaTableName (`character(1)`)
+    cdmconFetchCohortTable = function(cohortIds, cohortTableName, andromeda, andromedaTableName) {
+      andromeda[[andromedaTableName]] <- private$cdm[[cohortTableName]] %>%
+        dplyr::filter(.data$cohort_definition_id %in% cohortIds) 
+      return(invisible(NULL))
     },
 
     # andromeda (`Andromeda::andromeda()`)
